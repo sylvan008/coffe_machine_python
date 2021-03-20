@@ -1,3 +1,5 @@
+import sys
+
 MESSAGES = {
     "WATER": "ml of water",
     "MILK": "ml of milk",
@@ -5,37 +7,70 @@ MESSAGES = {
     "CUPS": "disposable cups of coffee"
 }
 
+ERRORS = {
+    0: "water",
+    1: "milk",
+    2: "beans",
+    3: "coffee"
+}
+
 ESPRESSO = '1'
 LATTE = '2'
 CAPPUCCINO = '3'
+BACK = 'back'
 FILL = 'fill'
 TAKE = 'take'
 BUY = 'buy'
+REMAINING = 'remaining'
+EXIT = 'exit'
 
 
-def calc_remainder_ingredients(ingredients, required_ingredients):
-    return tuple(map(lambda ingredient, required: ingredient - required, ingredients, required_ingredients))
+def create_amount(water, milk, beans, cups, money):
+    return water, milk, beans, cups, money
 
 
-# ingredients: (water, milk, beans, cups)
-def coffee_order(variant, ingredients, money):
-    if variant == ESPRESSO:
-        required_ingredients = (250, 0, 16, 1)
-        return calc_remainder_ingredients(ingredients, required_ingredients), money + 4
-    elif variant == LATTE:
-        required_ingredients = (350, 75, 20, 1)
-        return calc_remainder_ingredients(ingredients, required_ingredients), money + 7
-    elif variant == CAPPUCCINO:
-        required_ingredients = (200, 100, 12, 1)
-        return calc_remainder_ingredients(ingredients, required_ingredients), money + 6
+# 0 - espresso, 1 - latte, 2 - cappuccino
+RECIPES = (
+    create_amount(water=250, milk=0, beans=16, cups=1, money=-4),
+    create_amount(water=350, milk=75, beans=20, cups=1, money=-7),
+    create_amount(water=200, milk=100, beans=12, cups=1, money=-6)
+)
+
+
+def calc_remainder_amount(amount, required_amount):
+    return tuple(map(lambda ingredient, required: ingredient - required, amount, required_amount))
+
+
+def check_amount(amount, required_amount):
+    for i in range(len(amount)):
+        if amount[i] - required_amount[i] < 0:
+            return i
+        else:
+            return -1
+
+
+# amount: (water, milk, beans, cups)
+def coffee_order(variant, amount):
+    variants = (ESPRESSO, LATTE, CAPPUCCINO)
+    if variant in variants:
+        variant_ = int(variant) - 1
+        error = check_amount(amount[:-1], RECIPES[variant_][:-1])
+        if error >= 0:
+            print(f"Sorry, not enough {ERRORS[error]}!")
+            return amount
+        else:
+            return calc_remainder_amount(amount, RECIPES[variant_])
     else:
-        return ingredients, money
+        return amount
 
 
-def buy(ingredients, money):
-    print("What do you want to buy? 1 - espresso, 2 - latte, 3 - cappuccino:")
+def buy(amount):
+    print("What do you want to buy? 1 - espresso, 2 - latte, 3 - cappuccino, back - to main menu:")
     variant = input()
-    return coffee_order(variant, ingredients, money=money)
+    if variant == BACK:
+        return amount
+    else:
+        return coffee_order(variant, amount)
 
 
 def fill_ingredient(operation):
@@ -43,29 +78,40 @@ def fill_ingredient(operation):
     return int(input())
 
 
-def fill(ingredients):
+def fill(amount):
     operations = ['WATER', 'MILK', 'BEANS', 'CUPS']
-    added_ingredients = [fill_ingredient(operation) for operation in operations]
-    return tuple(map(lambda was, add: was + add, ingredients, added_ingredients))
+    added_amount = [fill_ingredient(operation) for operation in operations]
+    added_amount = create_amount(*added_amount, money=0)
+    return tuple(map(lambda was, add: was + add, amount, added_amount))
 
 
-def take(money=0):
+def take(amount):
+    money = amount[-1]
     print(f"I gave you ${money}")
-    return 0
+    return calc_remainder_amount(amount,
+                                 create_amount(water=0, milk=0, beans=0, cups=0, money=money))
 
 
-def get_action(ingredients, money):
-    print("Write action (buy, fill, take):")
+def get_action(amount):
+    print("Write action (buy, fill, take, remaining, exit):")
     action = input()
     if action == BUY:
-        return buy(ingredients, money)
+        return buy(amount)
     elif action == FILL:
-        return fill(ingredients), money
+        return fill(amount)
     elif action == TAKE:
-        return ingredients, take(money)
+        return take(amount)
+    elif action == REMAINING:
+        remaining(*amount)
+        return amount
+    elif action == EXIT:
+        sys.exit()
+    else:
+        print("Unknown action!")
+        sys.exit()
 
 
-def print_report(water=0, milk=0, beans=0, cups=0, money=0):
+def remaining(water=0, milk=0, beans=0, cups=0, money=0):
     print(f"""
 The coffee machine has:
 {water} of water
@@ -77,10 +123,9 @@ The coffee machine has:
 
 
 def main(water=0, milk=0, beans=0, cups=0, money=0):
-    ingredients = (water, milk, beans, cups)
-    print_report(*ingredients, money=money)
-    ingredients, money = get_action(ingredients, money)
-    print_report(*ingredients, money=money)
+    amount = create_amount(water, milk, beans, cups, money)
+    while True:
+        amount = get_action(amount)
 
 
 main(water=400, milk=540, beans=120, cups=9, money=550)
